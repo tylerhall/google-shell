@@ -1,0 +1,36 @@
+#!/usr/bin/php
+<?PHP
+	$query = urlencode('imdb american beauty');
+	$url = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=large&q=' . $query;
+	$json_raw = geturl($url);
+	$json = json_decode($json_raw);
+
+	$results = array();
+	foreach($json->responseData->results as $gresult)
+	{
+		$result = new Result();
+		$result->url = $gresult->unescapedUrl;
+		$result->title = $gresult->titleNoFormatting;
+		$result->abstract = trim(strip_tags($gresult->content));
+		$results[] = $result;
+	}
+
+	function geturl($url)
+	{
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en-US; rv:1.8.1) Gecko/20061024 BonEcho/2.0");
+        $html = curl_exec($ch);
+        curl_close($ch);
+        return $html;
+	}
+
+	class Result
+	{
+		public $url;
+		public $title;
+		public $abstract;
+	}
