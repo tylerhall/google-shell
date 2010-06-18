@@ -1,6 +1,56 @@
 #!/usr/bin/php
 <?PHP
-	$query = urlencode('imdb american beauty');
+	// Google Search shell 1.0.0
+	// Original Author: Tyler Hall <tylerhall@gmail.com>
+	// Latest Source and Bug Tracker: http://github.com/tylerhall/google-shell
+	//
+	// Programatic interface to Google's search resutls.
+	//
+	// This code is licensed under the MIT Open Source License.
+	// Copyright (c) 2010 tylerhall@gmail.com
+	// Permission is hereby granted, free of charge, to any person obtaining a copy
+	// of this software and associated documentation files (the "Software"), to deal
+	// in the Software without restriction, including without limitation the rights
+	// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	// copies of the Software, and to permit persons to whom the Software is
+	// furnished to do so, subject to the following conditions:
+	//
+	// The above copyright notice and this permission notice shall be included in
+	// all copies or substantial portions of the Software.
+	//
+	// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+	// THE SOFTWARE.
+
+	$shortops = 'c::n::utajf';
+	$longopts = array('count::', 'number::', 'url', 'title', 'abstract', 'help', 'json', 'no-format');
+	$options = getopt($shortops, $longopts);
+
+	if($GLOBALS['argc'] == 1 || array_key_exists('help', $options))
+	{
+		echo "Usage: " .  $GLOBALS['argv'][0] . " [OPTION]... QUERY\n";
+		echo "Programatic interface to Google's search resutls.\n";
+		echo "\n";
+		echo "-c, --count      number of results to return\n";
+		echo "-n, --number     returns only the nth result\n";
+		echo "-u, --url        returns only the results' urls\n";
+		echo "-t, --title      returns only the results' title\n";
+		echo "-a, --abstract   returns only the results' abstract\n";
+		echo "-j, --json       format results in json\n";
+		echo "-f, --no-format  returns results without any additional formatting\n";
+		echo "    --help      display this message and exit\n";
+		echo "\n";
+		echo "Report bugs to <tylerhall@gmail.com>\n";
+		exit;
+	}
+	
+	$query = $GLOBALS['argv'][$GLOBALS['argc'] - 1];
+	$query = urlencode($query);
+
 	$url = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=large&q=' . $query;
 	$json_raw = geturl($url);
 	$json = json_decode($json_raw);
@@ -13,6 +63,71 @@
 		$result->title = $gresult->titleNoFormatting;
 		$result->abstract = trim(strip_tags($gresult->content));
 		$results[] = $result;
+	}
+
+	if(array_key_exists('c', $options) || array_key_exists('count', $options))
+	{
+		if(array_key_exists('c', $options)) $count = $options['c'];
+		if(array_key_exists('count', $options)) $count = $options['count'];
+		$results = array_slice($results, 0, $count);
+	}
+
+	if(array_key_exists('n', $options) || array_key_exists('number', $options))
+	{
+		if(array_key_exists('n', $options)) $number = $options['n'];
+		if(array_key_exists('number', $options)) $number = $options['number'];
+		$results = array_slice($results, $number, 1);
+	}
+
+	if(array_key_exists('u', $options) || array_key_exists('t', $options) || array_key_exists('a', $options) ||
+	   array_key_exists('url', $options) || array_key_exists('title', $options) || array_key_exists('abstract', $options))
+	{
+		$array = array('u' => true, 't' => true, 'a' => true);
+		if(array_key_exists('u', $options) || array_key_exists('url', $options))
+			unset($array['u']);
+		if(array_key_exists('t', $options) || array_key_exists('title', $options))
+			unset($array['t']);
+		if(array_key_exists('a', $options) || array_key_exists('abstract', $options))
+			unset($array['a']);
+		
+		if(isset($array['u']))
+			foreach($results as &$result)
+				unset($result->url);
+
+		if(isset($array['t']))
+			foreach($results as &$result)
+				unset($result->title);
+
+		if(isset($array['a']))
+			foreach($results as &$result)
+				unset($result->abstract);
+	}
+
+	if(array_key_exists('j', $options) || array_key_exists('json', $options))
+	{
+		echo json_encode($results);
+		exit;
+	}
+
+	$no_format = array_key_exists('f', $options) || array_key_exists('no-format', $options) ? true : false;
+	
+	for($i = 0; $i < count($results); $i++)
+	{
+		$result = $results[$i];
+
+		if($no_format)
+		{
+			foreach(get_object_vars($result) as $key => $val)
+				echo $val . "\n";
+		}
+		else
+		{
+			foreach(get_object_vars($result) as $key => $val)
+			{
+				echo ($i + 1) . ") " . ucwords($key) . ": $val\n";
+			}
+			echo "\n";
+		}
 	}
 
 	function geturl($url)
